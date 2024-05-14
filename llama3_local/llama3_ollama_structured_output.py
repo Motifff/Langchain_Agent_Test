@@ -9,7 +9,7 @@ class Person(BaseModel):
     hair_color: str = Field(description="The person's hair color")
 
 context = """Alex is 5 feet tall. 
-Claudia is 1 feet taller than Alex and jumps higher than him. 
+While Claudia is 1 feet taller than Alex and jumps higher than him. 
 Claudia is a brunette and Alex is blonde."""
 
 # Prompt template llama3
