@@ -1,22 +1,19 @@
-import logging
-logging.basicConfig(level=logging.ERROR)
+import os
 
-from datetime import datetime, timedelta
-from typing import List
+os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 from langchain_community.docstore.in_memory import InMemoryDocstore
 from langchain.retrievers import TimeWeightedVectorStoreRetriever
 from langchain_community.vectorstores import FAISS
 from langchain_community.chat_models import ChatOllama
 from langchain_community.embeddings import OllamaEmbeddings
-from termcolor import colored
 
 USER_NAME = "Pam"  # The name you want to use when interviewing the agent.
 
 # Local Llama3 
 LLM = ChatOllama(
     model="llama3",
-    keep_alive=-1, # keep the model loaded indefinitely
+    #keep_alive=-1, # keep the model loaded indefinitely
     temperature=0,
     max_new_tokens=512)
 
@@ -25,34 +22,13 @@ from langchain_experimental.generative_agents import (
     GenerativeAgentMemory,
 )
 
-import math
-
 import faiss
+import numpy as np
 
-
-import math
-
-import faiss
-
-
-def relevance_score_fn(score: float) -> float:
-    """Return a similarity score on a scale [0, 1]."""
-    # This will differ depending on a few things:
-    # - the distance / similarity metric used by the VectorStore
-    # - the scale of your embeddings (OpenAI's are unit norm. Many others are not!)
-    # This function converts the euclidean norm of normalized embeddings
-    # (0 is most similar, sqrt(2) most dissimilar)
-    # to a similarity function (0 to 1)
-    return 1.0 - score / math.sqrt(2)
-
-
-def relevance_score_fn(score):
-    # Convert the raw distance score to a relevance score between 0 and 1
-    # Assuming scores are negative distances, higher relevance should be closer to 0
-    min_score = -30000  # Set this based on the observed range of your scores
-    max_score = 0
-    normalized_score = (score - min_score) / (max_score - min_score)
-    return min(1, max(0, normalized_score))
+def score_normalizer(val: float) -> float:
+    ret = 1.0 - 1.0 / (1.0 + np.exp(val))
+    print("val: "+str(float(val))+"_"+"ret: "+str(ret))
+    return ret
 
 
 def create_new_memory_retriever():
@@ -70,21 +46,20 @@ def create_new_memory_retriever():
     
     # Initialize FAISS vector store
     vectorstore = FAISS(
-        embedding_function=embeddings_model.embed_query,
-        index=index,
-        docstore=InMemoryDocstore({}),
-        index_to_docstore_id={},
-        relevance_score_fn=relevance_score_fn,
+        embeddings_model,
+        index,
+        InMemoryDocstore({}),
+        {},
+        relevance_score_fn=score_normalizer,
+        normalize_L2=True
     )
     
     # Create and return the retriever
-    retriever = TimeWeightedVectorStoreRetriever(
+    return TimeWeightedVectorStoreRetriever(
         vectorstore=vectorstore, 
         other_score_keys=["importance"], 
         k=15
     )
-    
-    return retriever
 
 tommies_memory = GenerativeAgentMemory(
     llm=LLM,
@@ -130,4 +105,4 @@ def interview_agent(agent: GenerativeAgent, message: str) -> str:
     print(new_message)
     return agent.generate_dialogue_response(new_message)[1]
 
-interview_agent(tommie, "What do you like to do?")
+interview_agent(tommie, "What are you looking forward to doing today?")
