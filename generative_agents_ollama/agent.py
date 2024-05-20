@@ -1,5 +1,9 @@
 import os
+import numpy as np
+import faiss
+import time
 
+# This is a workaround for a known issue with the transformers library.
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 from langchain_community.docstore.in_memory import InMemoryDocstore
@@ -7,32 +11,30 @@ from langchain.retrievers import TimeWeightedVectorStoreRetriever
 from langchain_community.vectorstores import FAISS
 from langchain_community.chat_models import ChatOllama
 from langchain_community.embeddings import OllamaEmbeddings
+from langchain_experimental.generative_agents import (GenerativeAgent,GenerativeAgentMemory)
+from termcolor import colored
 
 USER_NAME = "Pam"  # The name you want to use when interviewing the agent.
+
+
+# create a new instance
+
 
 # Local Llama3 
 LLM = ChatOllama(
     model="llama3",
-    #keep_alive=-1, # keep the model loaded indefinitely
+    keep_alive=-1, # keep the model loaded indefinitely
     temperature=0,
-    max_new_tokens=512)
+    max_new_tokens=512 # officailly 8192
+    )
 
-from langchain_experimental.generative_agents import (
-    GenerativeAgent,
-    GenerativeAgentMemory,
-)
-
-import faiss
-import numpy as np
 
 def score_normalizer(val: float) -> float:
-    ret = 1.0 - 1.0 / (1.0 + np.exp(val))
-    print("val: "+str(float(val))+"_"+"ret: "+str(ret))
-    return ret
-
+    # This function normalizes the scores to be between 0 and 1
+    print("time of eval:"+str(time.time()))
+    return 1.0 - 1.0 / (1.0 + np.exp(val))
 
 def create_new_memory_retriever():
-    """Create a new vector store retriever unique to the agent."""
     """Create a new vector store retriever unique to the agent."""
     # Define your embedding model
     embeddings_model = OllamaEmbeddings(model="llama3")
@@ -51,7 +53,7 @@ def create_new_memory_retriever():
         InMemoryDocstore({}),
         {},
         relevance_score_fn=score_normalizer,
-        normalize_L2=True
+        normalize_L2=True # Normalize the embeddings
     )
     
     # Create and return the retriever
@@ -73,14 +75,9 @@ tommie = GenerativeAgent(
     age=25,
     traits="anxious, likes design, talkative",  # You can add more persistent traits here
     status="looking for a job",  # When connected to a virtual world, we can have the characters update their status
-    memory_retriever=create_new_memory_retriever(),
     llm=LLM,
     memory=tommies_memory,
 )
-
-# The current "Summary" of a character can't be made because the agent hasn't made
-# any observations yet.
-print(tommie.get_summary())
 
 # We can add memories directly to the memory object
 tommie_observations = [
@@ -92,17 +89,20 @@ tommie_observations = [
     "Tommie is hungry",
     "Tommie tries to get some rest.",
 ]
+
 for observation in tommie_observations:
     tommie.memory.add_memory(observation)
 
 # Now that Tommie has 'memories', their self-summary is more descriptive, though still rudimentary.
 # We will see how this summary updates after more observations to create a more rich description.
-print(tommie.get_summary(force_refresh=True))
+#print(tommie.get_summary(force_refresh=True))
 
 def interview_agent(agent: GenerativeAgent, message: str) -> str:
     """Help the notebook user interact with the agent."""
     new_message = f"{USER_NAME} says {message}"
-    print(new_message)
-    return agent.generate_dialogue_response(new_message)[1]
+    print("time start:"+str(time.time()))
+    ans = agent.generate_dialogue_response(new_message)[1]
+    print(colored(f"{agent.name} says: {ans}", "green"))
+    return ans
 
 interview_agent(tommie, "What are you looking forward to doing today?")
