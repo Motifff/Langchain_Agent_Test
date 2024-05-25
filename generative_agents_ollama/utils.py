@@ -75,7 +75,7 @@ class OneAgent:
         )
 
     def init_memory(self):
-        for i, observation in enumerate(self.info["initial_observations"]):
+        for i, observation in enumerate(self.info["initial_memory"]):
             _, reaction = self.agent.generate_reaction(observation)
             print(colored(observation, "green"), reaction)
         print("*" * 40)

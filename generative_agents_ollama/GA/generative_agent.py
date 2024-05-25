@@ -163,7 +163,7 @@ Relevant context:
         call_to_action_template = (
             f"{self.name} is considering a proposal for the following topic: {topic}."
             +"What would {agent_name} say?"
-            +"the text should be a single sentence."
+            +"the text must be a single sentence."
         )
         full_result = self._generate_reaction(
             topic, call_to_action_template, now=now
