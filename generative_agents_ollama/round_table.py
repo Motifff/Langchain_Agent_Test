@@ -1,7 +1,8 @@
 import os, random
 
 from termcolor import colored
-from typing import List, Dict, Any, Tuple
+from datetime import datetime
+from typing import List, Dict, Any, Tuple, Optional
 from collections import Counter
 
 from utils import OneAgent
@@ -54,9 +55,12 @@ class DesignerRoundTableChat:
             return most_common_numbers[0]
 
 
-    def run_round(self,steps):
-        # Firstly, we should initialize the memory of each agent
-        
+    # First we should init the initial memory for each agent
+    def init_memory(self):
+        for each in self.agents:
+            each.init_memory()
+
+    def run_round(self,steps,now: Optional[datetime] = None):        
         # Generate design proposals, the round should be like this:
         # 1. Generate design proposals based on given topic(only in first round)
         # 2. Each agent generates a design proposal and presents it to the group
@@ -74,9 +78,23 @@ class DesignerRoundTableChat:
                 print(colored("There is a tie, redo the round", "red"))
                 continue
             else:
-                print(colored(f"The winning proposal is: {self.design_proposals[result]}", "green"))
+                print(colored(f"The winning proposal is: {self.design_proposals[result-1]}", "green"))
                 for each in self.agents:
-                    each.memory.add_memory(self.design_proposals[result])
+                    for one in self.design_proposals:
+                        each.agent.memory.save_context(
+                            {},
+                            { 
+                                each.agent.memory.add_memory_key: f"someone proposed {one}",
+                                each.agent.memory.now_key: now,
+                            }
+                        )
+                    each.agent.memory.save_context(
+                        {},
+                        {
+                            each.agent.memory.add_memory_key: f" The winning proposal is {self.design_proposals[result-1]}",
+                            each.agent.memory.now_key: now,
+                        },
+                    )
                 steps -= 1
                 #clean this round's data
                 self.design_proposals = []
@@ -84,14 +102,48 @@ class DesignerRoundTableChat:
         
 
 # Example
-topic = "Design a new logo for our company"
+topic = "Design and development of future cities"
 
 # Define the agents with self, info: Dict, model: str, temperature: float, max_new_tokens: int
 
 agents = [
-    OneAgent({"name": "Tommie", "age": 25, "traits": "creative and friendly", "status": "working on a robotic project","initial_memory": ""}, "phi3", 0.2, 4096),
-    OneAgent({"name": "Sally", "age": 30, "traits": "logical and detail-oriented", "status": "dive into books about bio-design","initial_memory": ""}, "phi3", 0.2, 4096),
-    OneAgent({"name": "Bob", "age": 35, "traits": "analytical and introverted", "status": "doing excercise","initial_memory": ""}, "phi3", 0.2, 4096),
+    OneAgent({"name": "Alex", "age": 25, "traits": "innovative, analytical and urban planner", "status": "working on a robotic project","initial_memory": [
+                    "Alex has worked on several smart city projects across different continents.",
+                    "Alex believes in the potential of technology to solve urban challenges.",
+                    "Alex had a mentor who emphasized the importance of community involvement in urban planning.",
+                    "Alex recently attended a conference on sustainable city development.",
+                    "Alex enjoys reading about the latest advancements in renewable energy.",
+                    "Alex notes the increasing integration of IoT devices in urban infrastructure.",
+                    "Alex observes a trend towards mixed-use developments in major cities.",
+                    "Alex finds that public opinion is often divided on the implementation of autonomous vehicles.",
+                    "Alex sees the growing importance of green spaces in urban areas for residents' well-being.",
+                    "Alex is concerned about the digital divide and its impact on equitable access to smart city benefits."
+                ]
+              }, "phi3", 0.2, 4096),
+    OneAgent({"name": "Sally", "age": 30, "traits": "curious,critical,environmental scientist", "status": "dive into books about bio-design","initial_memory": [
+                    "Sally has been researching the impact of urbanization on local ecosystems.",
+                    "Sally is passionate about reducing carbon footprints in city planning.",
+                    "Sally worked on a project that successfully integrated green roofs in a metropolitan area.",
+                    "Sally often collaborates with urban planners and architects to promote sustainable practices.",
+                    "Sally recently published a paper on the benefits of urban biodiversity.",
+                    "Sally notices the rise of eco-friendly building materials in construction.",
+                    "Sally is intrigued by the potential of vertical farming in urban settings.",
+                    "Sally is concerned about the pollution levels in rapidly growing cities.",
+                    "Sally observes that public transportation systems are key to reducing urban emissions.",
+                    "Sally finds that cities with robust recycling programs have lower waste management costs.",
+                ]}, "phi3", 0.2, 4096),
+    OneAgent({"name": "Taylor", "age": 35, "traits": "analytical and introverted", "status": "have great passion of graphical design","initial_memory": [
+                    "Taylor has conducted extensive research on the social impact of urban development."
+                    "Taylor advocates for inclusive city planning that considers diverse community needs."
+                    "Taylor participated in a community-led urban renewal project."
+                    "Taylor is interested in how urban environments affect mental health."
+                    "Taylor recently attended a seminar on the future of work in smart cities."
+                    "Taylor observes that gentrification often leads to displacement of long-term residents."
+                    "Taylor sees a trend towards community-driven development projects."
+                    "Taylor notes the importance of affordable housing in maintaining social equity."
+                    "Taylor finds that well-designed public spaces can foster social cohesion."
+                    "Taylor is concerned about the social implications of widespread surveillance in smart cities."
+                ]}, "phi3", 0.2, 4096),
 ]
 
 god_agent = OneAgent({"name": "God", "age": 9999, "traits": "all-knowing", "status": "omnipotent","initial_memory": ""}, "phi3", 0.2, 4096)
@@ -101,4 +153,5 @@ agents_general_memory = [
 ]
 
 round_table_chat = DesignerRoundTableChat(agents, topic)
+#round_table_chat.init_memory()
 round_table_chat.run_round(5)

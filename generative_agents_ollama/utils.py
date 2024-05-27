@@ -116,5 +116,4 @@ class OneAgent:
     def vote(self, proposals:List[str]) -> int:
         ans = self.agent.vote_decision(proposals)
         print(ans)
-        self.memory.add_memory(proposals[ans-1])
         return ans

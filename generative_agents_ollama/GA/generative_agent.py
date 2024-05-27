@@ -168,30 +168,43 @@ Relevant context:
         full_result = self._generate_reaction(
             topic, call_to_action_template, now=now
         )
-        return full_result.strip()
+        """Decide what to propose"""
+        relevant_memories_str = self.summarize_related_memories(topic)
+        prompt = PromptTemplate.from_template(
+            "{name} is considering a proposal on the topic: {topic}."
+            + "Given the following relevant memories,  {name}'s best proposal."
+            + " Relevant memories: {relevant_memories_str}"
+            + " Use the memories to inform your decision."
+            + '\nWrite only one sentence as your proposal.'
+        )   
+        kwargs: Dict[str, Any] = dict(
+            name = self.name,
+            relevant_memories_str=relevant_memories_str,
+            topic=topic,
+        )
+        response = self.chain(prompt).run(**kwargs).strip()   
+        return response
     
     # based on the proposals, agent come up with a voting decision
     def vote_decision(self, proposals: List[str]) -> int:
         """Decide which proposal to vote for."""
-        # convert proposals to a string
-        proposals_str = "\n".join(proposals)
+        # convert proposals to a string, and lable them with numbers
+        proposals_str = [f"{i+1}. {proposal}" for i, proposal in enumerate(proposals)]
         relevant_memories_str = self.summarize_related_memories(proposals_str)
         prompt = PromptTemplate.from_template(
-            "Given the following relevant memories, decide which vote is the best."
-            + " Use the memories to inform your decision."
-            + " Always answer with only the best vote."
+            "Given the following relevant memories, decide which proposal is the best."
             + " Relevant memories: {relevant_memories_str}"
-            + " following piece of memory. Only respond with a single integer."
+            + " Use the memories to inform your decision."
             + "\nProposals: {proposals_str}"
-            + '\nWrite in format :"VOTE:(number)"'
+            + '\nWrite only in format :"VOTE:(number)" without any additional comments.'
         )   
         kwargs: Dict[str, Any] = dict(
             relevant_memories_str=relevant_memories_str,
             proposals_str=proposals_str,
         )
         response = self.chain(prompt).run(**kwargs).strip()
-        # get the number behind "VOTE:"
-        vote = int(response.split("VOTE:")[-1])
+        # get the only number behind "VOTE:"
+        vote = int(re.findall(r"\d+", response)[0])
         return int(vote)
 
     def generate_dialogue_response(
