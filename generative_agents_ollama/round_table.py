@@ -84,21 +84,57 @@ class DesignerRoundTableChat:
         
 
 # Example
-topic = "Design a new logo for our company"
+topic = "Design and development of future cities"
 
 # Define the agents with self, info: Dict, model: str, temperature: float, max_new_tokens: int
 
 agents = [
-    OneAgent({"name": "Tommie", "age": 25, "traits": "creative and friendly", "status": "working on a robotic project","initial_memory": ""}, "phi3", 0.2, 4096),
-    OneAgent({"name": "Sally", "age": 30, "traits": "logical and detail-oriented", "status": "dive into books about bio-design","initial_memory": ""}, "phi3", 0.2, 4096),
-    OneAgent({"name": "Bob", "age": 35, "traits": "analytical and introverted", "status": "doing excercise","initial_memory": ""}, "phi3", 0.2, 4096),
+    OneAgent({"name": "Alex", "age": 25, "traits":  "innovative, analytical and urban planner", "status": "working on a robotic project","initial_memory": 
+            "Alex has worked on several smart city projects across different continents."
+            "Alex believes in the potential of technology to solve urban challenges."
+            "Alex had a mentor who emphasized the importance of community involvement in urban planning."
+            "Alex recently attended a conference on sustainable city development."
+            "Alex enjoys reading about the latest advancements in renewable energy."
+            "Alex notes the increasing integration of IoT devices in urban infrastructure."
+            "Alex observes a trend towards mixed-use developments in major cities."
+            "Alex finds that public opinion is often divided on the implementation of autonomous vehicles."
+            "Alex sees the growing importance of green spaces in urban areas for residents' well-being."
+            "Alex is concerned about the digital divide and its impact on equitable access to smart city benefits."},
+            "phi3", 0.2, 4096),
+    OneAgent({"name": "Jordan", "age": 30, "traits": "curious" "critical" "environmental scientist", "status": "dive into books about bio-design","initial_memory": 
+            "Jordan has been researching the impact of urbanization on local ecosystems."
+            "Jordan is passionate about reducing carbon footprints in city planning."
+            "Jordan worked on a project that successfully integrated green roofs in a metropolitan area."
+            "Jordan often collaborates with urban planners and architects to promote sustainable practices."
+            "Jordan recently published a paper on the benefits of urban biodiversity."
+            "Jordan notices the rise of eco-friendly building materials in construction."
+            "Jordan is intrigued by the potential of vertical farming in urban settings."
+            "Jordan is concerned about the pollution levels in rapidly growing cities."
+            "Jordan observes that public transportation systems are key to reducing urban emissions."
+            "Jordan finds that cities with robust recycling programs have lower waste management costs."}, 
+            "phi3", 0.2, 4096),
+    OneAgent({"name": "Bob", "age": 35, "traits": "empathetic, community-oriented and sociologist", "status": "doing design project","initial_memory": 
+            "Taylor has conducted extensive research on the social impact of urban development."
+            "Taylor advocates for inclusive city planning that considers diverse community needs."
+            "Taylor participated in a community-led urban renewal project."
+            "Taylor is interested in how urban environments affect mental health."
+            "Taylor recently attended a seminar on the future of work in smart cities."
+            "Taylor observes that gentrification often leads to displacement of long-term residents."
+            "Taylor sees a trend towards community-driven development projects."
+            "Taylor notes the importance of affordable housing in maintaining social equity."
+            "Taylor finds that well-designed public spaces can foster social cohesion."
+            "Taylor is concerned about the social implications of widespread surveillance in smart cities."}, "phi3", 0.2, 4096),
 ]
 
-god_agent = OneAgent({"name": "God", "age": 9999, "traits": "all-knowing", "status": "omnipotent","initial_memory": ""}, "phi3", 0.2, 4096)
+god_agent = OneAgent({"name": "God", "age": 59, "traits": "all-knowing", "status": "omnipotent","initial_memory": ""}, "phi3", 0.2, 4096)
 
 agents_general_memory = [
-    
+    "The agents recently collaborated on a project to design a new smart district in a major city."
+    "They attended a workshop on integrating renewable energy sources into urban infrastructure."
+    "The agents frequently discuss the balance between technological advancements and social equity."
+    "They are all aware of a recent government initiative to promote green transportation."
+    "The agents have diverse perspectives but share a common goal of creating sustainable and livable cities for all residents."
 ]
 
 round_table_chat = DesignerRoundTableChat(agents, topic)
-round_table_chat.run_round(5)
+round_table_chat.run_round(10)
