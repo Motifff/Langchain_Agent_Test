@@ -74,11 +74,11 @@ class GenerativeAgent(BaseModel):
         """Summarize memories that are most relevant to an observation."""
         prompt = PromptTemplate.from_template(
             """
-{q1}?
-Context from memory:
-{relevant_memories}
-Relevant context: 
-"""
+            {q1}?
+            Context from memory:
+            {relevant_memories}
+            Relevant context: 
+            """
         )
         entity_name = self._get_entity_from_observation(observation)
         entity_action = self._get_entity_action(observation, entity_name)
@@ -160,22 +160,14 @@ Relevant context:
 
     # based on previous memory, agent come up with a current best idea
     def propose(self, topic: str, now: Optional[datetime] = None) -> str:
-        call_to_action_template = (
-            f"{self.name} is considering a proposal for the following topic: {topic}."
-            +"What would {agent_name} say?"
-            +"the text must be a single sentence."
-        )
-        full_result = self._generate_reaction(
-            topic, call_to_action_template, now=now
-        )
         """Decide what to propose"""
         relevant_memories_str = self.summarize_related_memories(topic)
         prompt = PromptTemplate.from_template(
-            "{name} is considering a proposal on the topic: {topic}."
-            + "Given the following relevant memories,  {name}'s best proposal."
+            "{name} is considering a design proposal on the topic: {topic}."
+            + "Given the following relevant memories, what is {name}'s best proposal."
             + " Relevant memories: {relevant_memories_str}"
-            + " Use the memories to inform your decision."
-            + '\nWrite only one sentence as your proposal.'
+            + " Use the memories to inform your design proposal."
+            + "\nWrite as short as possible."
         )   
         kwargs: Dict[str, Any] = dict(
             name = self.name,
@@ -196,11 +188,12 @@ Relevant context:
             + " Relevant memories: {relevant_memories_str}"
             + " Use the memories to inform your decision."
             + "\nProposals: {proposals_str}"
-            + '\nWrite only in format :"VOTE:(number)" without any additional comments.'
+            + '\nWrite only in format :"VOTE:(number from 1 to {total_num})" without any additional comments.'
         )   
         kwargs: Dict[str, Any] = dict(
             relevant_memories_str=relevant_memories_str,
             proposals_str=proposals_str,
+            total_num=len(proposals)+1,
         )
         response = self.chain(prompt).run(**kwargs).strip()
         # get the only number behind "VOTE:"

@@ -1,0 +1,27 @@
+{
+    "preset": {
+        "agents": [
+            {
+                "name": "agent1",
+                "traits": "",
+                "status": "",
+                "memory": []
+            },
+            {
+                "name": "agent2",
+                "traits": "",
+                "status": "",
+                "memory": []
+            }
+        ],
+        "topic": ""
+    },
+    "round": [
+        {
+            "round_number": 1,
+            "round_topic": "",
+            "proposals": [],
+            "vote": 1
+        }
+    ]
+}

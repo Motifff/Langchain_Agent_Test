@@ -5,8 +5,6 @@ import random
 
 from typing import List, Dict, Any, Tuple
 
-
-
 from langchain_community.docstore.in_memory import InMemoryDocstore
 from langchain.retrievers import TimeWeightedVectorStoreRetriever
 from langchain_community.vectorstores import FAISS
@@ -89,7 +87,7 @@ class OneAgent:
 
     # reserved method for external user to interview
     def interview_agent(self,message: str) -> str:
-        """Help the notebook user interact with the agent."""
+        """user interact with the agent."""
         new_message = f"{USER_NAME} says {message}"
         ans =  self.agent.generate_dialogue_response(new_message)[1]
         print(colored(f"{self.agent.name} says: {ans}", "green"))
