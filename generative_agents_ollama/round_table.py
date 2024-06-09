@@ -104,8 +104,7 @@ class DesignerRoundTableChat:
         embeddings_model = OllamaEmbeddings(model="qwen2")
         # get embedding vector
         o_vec = embeddings_model.embed_query(text)
-        
-        return 
+        return o_vec
     
     # First we should init the initial memory for each agent
     def init_memory(self):
