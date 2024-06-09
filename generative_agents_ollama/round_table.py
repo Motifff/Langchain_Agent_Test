@@ -176,7 +176,7 @@ agents = [
                     "Alex sees the growing importance of green spaces in urban areas for residents' well-being.",
                     "Alex is concerned about the digital divide and its impact on equitable access to smart city benefits."
                 ]
-              }, "phi3", 0.2, 512),
+              }, "qwen2", 0.1, 512),
     OneAgent({"name": "Sally", "age": 30, "traits": "curious,critical,environmental scientist", "status": "dive into books about bio-design","initial_memory": [
                     "Sally has been researching the impact of urbanization on local ecosystems.",
                     "Sally is passionate about reducing carbon footprints in city planning.",
@@ -188,7 +188,8 @@ agents = [
                     "Sally is concerned about the pollution levels in rapidly growing cities.",
                     "Sally observes that public transportation systems are key to reducing urban emissions.",
                     "Sally finds that cities with robust recycling programs have lower waste management costs.",
-                ]}, "phi3", 0.2, 512),
+                ]
+                }, "qwen2", 0.1, 512),
     OneAgent({"name": "Taylor", "age": 35, "traits": "analytical and introverted", "status": "have great passion of graphical design","initial_memory": [
                     "Taylor has conducted extensive research on the social impact of urban development."
                     "Taylor advocates for inclusive city planning that considers diverse community needs."
@@ -200,7 +201,8 @@ agents = [
                     "Taylor notes the importance of affordable housing in maintaining social equity."
                     "Taylor finds that well-designed public spaces can foster social cohesion."
                     "Taylor is concerned about the social implications of widespread surveillance in smart cities."
-                ]}, "phi3", 0.2, 512),
+                ]
+                }, "qwen2", 0.1, 512),
 ]
 
 agents_general_memory = [
