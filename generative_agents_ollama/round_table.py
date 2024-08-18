@@ -67,6 +67,8 @@ class DesignerRoundTableChat:
         self.proposal_won = ""
         self.design_proposals = []
         self.votes = []
+        self.extreme_vectors = []
+        self.scaler = StandardScaler()  # This should be fit on your extreme vectors if possible
         self.llm = ChatOllama(
             model="phi3",
             keep_alive=-1,
@@ -143,17 +145,44 @@ class DesignerRoundTableChat:
         self.topic = response 
         return response
 
+    def generate_extreme_vectors(self):
+        # ask the llm to generate six extreme vectors for self.topic and return in a json list format
+        prompt = PromptTemplate.from_template(
+            "You are a round table holder and overall topic is {overall_topic}"+
+            "You have just finished a round of discussion"+
+            "Based on the proposals from the agents, they are {current_round_proposals},"+
+            "And the winning proposal is {winning_proposal}"+
+            "you need to generate a new topic for the next round of discussion based on given information"+
+            "The new topic should be related to the current topic but with a new focus."+
+            "The response should be within 3-5 sentences."
+        )
+        kwargs: Dict[str, Any] = dict(
+            current_topic=self.topic
+        )
+        # Send the prompt to ChatOllama and get the response
+        response = self.chain(prompt).run(**kwargs).strip()
+        # parse the json text to get the extreme vectors's list
+        self.extreme_vectors = json.loads(response)
+
     def get_embedding_vector(self, text: str):
-        """Get the embedding vector for a given text."""
+        """Get the embedding vector for a given text and also return its PCA-reduced version."""
         # Get the embedding vector for the text
         o_vec = self.embeddings_model.embed_query(text)
-        # calculate the PCA vector for the text
-        np_o_vec = np.array(o_vec).reshape(1, -1)
-        scaler = StandardScaler()
-        scaled_o_vec = scaler.fit_transform(np_o_vec)
+        
+        # Combine the original vector with the extreme vectors
+        all_vectors = np.array([*self.extreme_vectors, o_vec])
+        
+        # Scale the combined vectors
+        scaled_vectors = self.scaler.fit_transform(all_vectors)
+        
+        # Perform PCA to reduce the dimensionality to 3
         pca = PCA(n_components=3)
-        p_vec = pca.fit_transform(scaled_o_vec)
-        return [o_vec.tolist(), p_vec.flatten().tolist()]
+        reduced_vectors = pca.fit_transform(scaled_vectors)
+        
+        # Extract the PCA-reduced vector for the input text
+        p_vec = reduced_vectors[-1]
+        
+        return [o_vec.tolist(), p_vec.tolist()]
     
     # First we should init the initial memory for each agent
     def init_memory(self):
