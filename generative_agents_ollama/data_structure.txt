@@ -1,0 +1,35 @@
+"""
+File Hierachy of vis_data.json
+{
+    "original_topic"
+    "agents": [
+        {
+            "name"
+            "age"
+            "traits"
+            "status"
+            "initial_memory"
+        }
+    ,...]
+    "total_round":0,
+    "runtime":[
+        "round_count"
+        "topic":{
+            "text"
+            "vector"
+            "pca_vector"
+        }
+        "proposals":[
+            {
+                "proposal"
+                "vector"
+                "pca_vector"
+            },...
+        ]
+        "vote":{
+            "process": [],
+            "win": 
+        }
+    ]
+}
+"""

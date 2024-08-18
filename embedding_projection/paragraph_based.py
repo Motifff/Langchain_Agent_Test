@@ -3,7 +3,8 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from sklearn.decomposition import PCA
 from langchain_community.embeddings import OllamaEmbeddings
-  # Placeholder for your embedding function
+
+# Placeholder for your embedding function
 
 # Step 1: Load your text file
 with open('embedding_projection/similarity.txt', 'r') as file:
@@ -59,3 +60,5 @@ annot.set_visible(False)
 fig.canvas.mpl_connect("motion_notify_event", hover)
 
 plt.show()
+
+

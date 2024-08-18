@@ -115,3 +115,5 @@ class OneAgent:
         ans = self.agent.vote_decision(proposals)
         print(ans)
         return ans
+
+

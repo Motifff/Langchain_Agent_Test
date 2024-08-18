@@ -1,26 +1,69 @@
-import os, random
+"""
+File Hierachy of vis_data.json
+{
+    "original_topic"
+    "agents": [
+        {
+            "name"
+            "age"
+            "traits"
+            "status"
+            "initial_memory"
+        }
+    ,...]
+    "total_round":
+    "runtime":[
+        "round_count"
+        "topic":{
+            "text"
+            "vector"
+            "pca_vector"
+        }
+        "proposals":[
+            {
+                "proposal"
+                "vector"
+                "pca_vector"
+            },...
+        ]
+        "vote":{
+            "process": [],
+            "win": 
+        }
+    ]
+}
+"""
+
+import os, json ,fcntl, time
 
 from termcolor import colored
 from datetime import datetime
-from typing import List, Dict, Any, Tuple, Optional
+from typing import List, Dict, Any, Optional
 from collections import Counter
 
 from utils import OneAgent
 from GA._init_ import GenerativeAgent
 
+import numpy as np
 from langchain_community.embeddings import OllamaEmbeddings
 from langchain_community.chat_models import ChatOllama
 from langchain.chains import LLMChain
 from langchain_core.prompts import PromptTemplate
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
 
 # This is a workaround for a known issue with the transformers library.
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
+file_path = "/Users/motif/Documents/Projs/code/Langchain_Agent_Test/generative_agents_ollama/data.json"
+
 class DesignerRoundTableChat:
-    def __init__(self, agents: List[OneAgent], topic: str):
+    def __init__(self, agents: List[OneAgent], topic: str, jsonFile: Dict,emb_model: str = "phi3"):
         self.agents = agents
         self.topic = topic
         self.init_topic = topic
+        self.round_count = 0
+        self.data_round = 0
         self.proposal_won = ""
         self.design_proposals = []
         self.votes = []
@@ -30,6 +73,7 @@ class DesignerRoundTableChat:
             temperature=0.2,
             max_new_tokens=4096
         )
+        self.embeddings_model = OllamaEmbeddings(model=emb_model)
 
     def chain(self, prompt: PromptTemplate) -> LLMChain:
         """Create a chain with the same settings as the agent."""
@@ -99,19 +143,24 @@ class DesignerRoundTableChat:
         self.topic = response 
         return response
 
-    def get_embedding_vector(model: str, text: str):
+    def get_embedding_vector(self, text: str):
         """Get the embedding vector for a given text."""
-        embeddings_model = OllamaEmbeddings(model="qwen2")
-        # get embedding vector
-        o_vec = embeddings_model.embed_query(text)
-        return o_vec
+        # Get the embedding vector for the text
+        o_vec = self.embeddings_model.embed_query(text)
+        # calculate the PCA vector for the text
+        np_o_vec = np.array(o_vec).reshape(1, -1)
+        scaler = StandardScaler()
+        scaled_o_vec = scaler.fit_transform(np_o_vec)
+        pca = PCA(n_components=3)
+        p_vec = pca.fit_transform(scaled_o_vec)
+        return [o_vec.tolist(), p_vec.flatten().tolist()]
     
     # First we should init the initial memory for each agent
     def init_memory(self):
         for each in self.agents:
             each.init_memory()
 
-    def run_round(self,steps,now: Optional[datetime] = None):        
+    def run_round(self,now: Optional[datetime] = None):        
         # Generate design proposals, the round should be like this:
         # 1. Generate design proposals based on given topic(only in first round)
         # 2. Each agent generates a design proposal and presents it to the group
@@ -119,95 +168,107 @@ class DesignerRoundTableChat:
         # 4. Count voting results and decide the winning proposal, if there is a tie, redo 2 and 3
         # 5. Announce the winning proposal and add them to each agent's memory
         # Step should -1 if successfully finish a round, if steps is not 0, continue this process
-        while steps != 0:
-            self.generate_design_proposals()
-            for each in self.agents:
-                print(colored(f"skip interview process", "blue"))
-            self.conduct_voting()
-            result = self.count_votes()
-            if result == 999:
-                print(colored("There is a tie, redo the round", "red"))
-                continue
-            else:
-                self.proposal_won = self.design_proposals[result-1]
-                print(colored(f"The winning proposal is: {self.proposal_won}", "green"))
+        global data
+        self.data_round = data["total_round"]
+        while 1:          
+            if self.round_count < self.data_round:
+                self.generate_design_proposals()
                 for each in self.agents:
-                    for index, one in enumerate(self.design_proposals):
+                    print(colored(f"skip interview process", "blue"))
+                self.conduct_voting()
+                result = self.count_votes()
+                if result == 999:
+                    print(colored("There is a tie, redo the round", "red"))
+                    continue
+                else:
+                    self.proposal_won = self.design_proposals[result-1]
+                    print(colored(f"The winning proposal is: {self.proposal_won}", "green"))
+                    for each in self.agents:
+                        for index, one in enumerate(self.design_proposals):
+                            each.agent.memory.save_context(
+                                {},
+                                { 
+                                    each.agent.memory.add_memory_key: f"{self.agents[index].agent.name} proposed {one}",
+                                    each.agent.memory.now_key: now,
+                                }
+                            )
                         each.agent.memory.save_context(
                             {},
-                            { 
-                                each.agent.memory.add_memory_key: f"{self.agents[index].agent.name} proposed {one}",
+                            {
+                                each.agent.memory.add_memory_key: f"The winning proposal is {self.design_proposals[result-1]}",
                                 each.agent.memory.now_key: now,
-                            }
+                            },
                         )
-                    each.agent.memory.save_context(
-                        {},
-                        {
-                            each.agent.memory.add_memory_key: f"The winning proposal is {self.design_proposals[result-1]}",
-                            each.agent.memory.now_key: now,
+                        #print(colored(str(each.memory.memory_retriever.memory_stream), "red"))
+                    # dump data to json file
+                    data["runtime"].append({
+                        "round_count": self.round_count,
+                        "topic": {
+                            "text": self.topic,
+                            "vector": self.get_embedding_vector(self.topic)[0],
+                            "pca_vector": self.get_embedding_vector(self.topic)[1],
                         },
-                    )
-                    #print(colored(str(each.memory.memory_retriever.memory_stream), "red"))
-                steps -= 1
-                print(colored(f"Round is finished", "green"))
-                self.generate_new_round_topic()
-                #clean this round's data
-                self.design_proposals = []
-                self.votes = []
-                self.proposal_won = ""
+                        "proposals": [
+                            {
+                                "proposal": each,
+                                "vector": self.get_embedding_vector(each)[0],
+                                "pca_vector": self.get_embedding_vector(each)[1],
+                            } for each in self.design_proposals
+                        ],
+                        "vote": {
+                            "process": self.votes,
+                            "win": self.proposal_won
+                        }
+                    })
+                    with open(file_path,"w") as file:
+                        fcntl.flock(file, fcntl.LOCK_EX)
+                        json.dump(data, file, indent=4)
+                        fcntl.flock(file, fcntl.LOCK_UN)
+                        file.close()
+                    self.round_count += 1
+                    print(colored(f"Round is finished", "green"))
+                    self.generate_new_round_topic()
+                    #clean this round's data
+                    self.design_proposals = []
+                    self.votes = []
+                    self.proposal_won = ""
+            else:
+                # system delay for 30s
+                time.sleep(30)
+                print(colored("###System is waiting for the next round###", "blue"))
+                # update data from json file
+                with open(file_path,"r") as file:
+                    fcntl.flock(file, fcntl.LOCK_SH)
+                    data = json.load(file)
+                    fcntl.flock(file, fcntl.LOCK_UN)
+                file.close()
+                self.steps = data["total_round"]
+                print(colored(f"Total round is: {self.steps}", "green"))
+
+
+# initial main function
+if __name__ == "__main__":
+    # read from json file
+    global data
+    with open(file_path,"r") as file:
+        fcntl.flock(file, fcntl.LOCK_SH)
+        data = json.load(file)
+        fcntl.flock(file, fcntl.LOCK_UN)
+        file.close()
+    # read topic from json file in [original_topic]
+    topic = data["original_topic"]
+    agents = []
+
+    # agents are generated from the data[agents] file, which have name, age, traits, status, initial_memory, but model data is not included
+    for each in data["agents"]:
+        agent = OneAgent(each,"phi3",0.1,512)
+        agents.append(agent)
+
+    agents_general_memory = [
         
+    ]
 
-# Example
-topic = "Design and development of future cities"
-
-# Define the agents with self, info: Dict, model: str, temperature: float, max_new_tokens: int
-
-agents = [
-    OneAgent({"name": "Alex", "age": 25, "traits": "innovative, analytical and urban planner", "status": "working on a robotic project","initial_memory": [
-                    "Alex has worked on several smart city projects across different continents.",
-                    "Alex believes in the potential of technology to solve urban challenges.",
-                    "Alex had a mentor who emphasized the importance of community involvement in urban planning.",
-                    "Alex recently attended a conference on sustainable city development.",
-                    "Alex enjoys reading about the latest advancements in renewable energy.",
-                    "Alex notes the increasing integration of IoT devices in urban infrastructure.",
-                    "Alex observes a trend towards mixed-use developments in major cities.",
-                    "Alex finds that public opinion is often divided on the implementation of autonomous vehicles.",
-                    "Alex sees the growing importance of green spaces in urban areas for residents' well-being.",
-                    "Alex is concerned about the digital divide and its impact on equitable access to smart city benefits."
-                ]
-              }, "qwen2", 0.1, 512),
-    OneAgent({"name": "Sally", "age": 30, "traits": "curious,critical,environmental scientist", "status": "dive into books about bio-design","initial_memory": [
-                    "Sally has been researching the impact of urbanization on local ecosystems.",
-                    "Sally is passionate about reducing carbon footprints in city planning.",
-                    "Sally worked on a project that successfully integrated green roofs in a metropolitan area.",
-                    "Sally often collaborates with urban planners and architects to promote sustainable practices.",
-                    "Sally recently published a paper on the benefits of urban biodiversity.",
-                    "Sally notices the rise of eco-friendly building materials in construction.",
-                    "Sally is intrigued by the potential of vertical farming in urban settings.",
-                    "Sally is concerned about the pollution levels in rapidly growing cities.",
-                    "Sally observes that public transportation systems are key to reducing urban emissions.",
-                    "Sally finds that cities with robust recycling programs have lower waste management costs.",
-                ]
-                }, "qwen2", 0.1, 512),
-    OneAgent({"name": "Taylor", "age": 35, "traits": "analytical and introverted", "status": "have great passion of graphical design","initial_memory": [
-                    "Taylor has conducted extensive research on the social impact of urban development."
-                    "Taylor advocates for inclusive city planning that considers diverse community needs."
-                    "Taylor participated in a community-led urban renewal project."
-                    "Taylor is interested in how urban environments affect mental health."
-                    "Taylor recently attended a seminar on the future of work in smart cities."
-                    "Taylor observes that gentrification often leads to displacement of long-term residents."
-                    "Taylor sees a trend towards community-driven development projects."
-                    "Taylor notes the importance of affordable housing in maintaining social equity."
-                    "Taylor finds that well-designed public spaces can foster social cohesion."
-                    "Taylor is concerned about the social implications of widespread surveillance in smart cities."
-                ]
-                }, "qwen2", 0.1, 512),
-]
-
-agents_general_memory = [
-    
-]
-
-round_table_chat = DesignerRoundTableChat(agents, topic)
-#round_table_chat.init_memory()
-round_table_chat.run_round(5)
+    round_table_chat = DesignerRoundTableChat(agents, topic, data)
+    #round_table_chat.init_memory()
+    round_table_chat.run_round()
+        
