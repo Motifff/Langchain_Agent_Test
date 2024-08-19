@@ -58,7 +58,7 @@ os.environ['KMP_DUPLICATE_LIB_OK']='True'
 file_path = "/Users/motif/Documents/Projs/code/Langchain_Agent_Test/generative_agents_ollama/data.json"
 
 class DesignerRoundTableChat:
-    def __init__(self, agents: List[OneAgent], topic: str, jsonFile: Dict,emb_model: str = "phi3"):
+    def __init__(self, agents: List[OneAgent], topic: str, jsonFile: Dict, directinal_text, emb_model: str = "phi3"):
         self.agents = agents
         self.topic = topic
         self.init_topic = topic
@@ -67,7 +67,7 @@ class DesignerRoundTableChat:
         self.proposal_won = ""
         self.design_proposals = []
         self.votes = []
-        self.extreme_vectors = []
+        self.extreme_words = directinal_text
         self.scaler = StandardScaler()  # This should be fit on your extreme vectors if possible
         self.llm = ChatOllama(
             model="phi3",
@@ -166,11 +166,12 @@ class DesignerRoundTableChat:
 
     def get_embedding_vector(self, text: str):
         """Get the embedding vector for a given text and also return its PCA-reduced version."""
-        # Get the embedding vector for the text
+        # Get the embedding vector for the text and self.extreme_text
         o_vec = self.embeddings_model.embed_query(text)
+        extreme_vectors = [self.embeddings_model.embed_query(extreme_text) for extreme_text in self.extreme_words]
         
         # Combine the original vector with the extreme vectors
-        all_vectors = np.array([*self.extreme_vectors, o_vec])
+        all_vectors = np.vstack([extreme_vectors, o_vec])
         
         # Scale the combined vectors
         scaled_vectors = self.scaler.fit_transform(all_vectors)
@@ -182,7 +183,7 @@ class DesignerRoundTableChat:
         # Extract the PCA-reduced vector for the input text
         p_vec = reduced_vectors[-1]
         
-        return [o_vec.tolist(), p_vec.tolist()]
+        return [o_vec, p_vec.tolist()]
     
     # First we should init the initial memory for each agent
     def init_memory(self):
@@ -297,7 +298,16 @@ if __name__ == "__main__":
         
     ]
 
-    round_table_chat = DesignerRoundTableChat(agents, topic, data)
+    directional_text = [
+        "Focus on objective facts and data, analyze existing information.",
+        "Represents emotions and intuition, expresses personal feelings and emotions.",
+        "Used for critical thinking, identify potential problems and risks.",
+        "Symbolizes optimism, looking for positive aspects and opportunities in problems.",
+        "Represents creative thinking, encourages new ideas and solutions.",
+        "Responsible for organizing and controlling the thinking process, ensuring that thinking is carried out in an orderly manner.",
+    ]
+
+    round_table_chat = DesignerRoundTableChat(agents, topic, data, directional_text)
     #round_table_chat.init_memory()
     round_table_chat.run_round()
         

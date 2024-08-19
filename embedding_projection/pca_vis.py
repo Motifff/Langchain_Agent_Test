@@ -6,7 +6,7 @@ from sklearn.preprocessing import StandardScaler
 from langchain_community.embeddings import OllamaEmbeddings
 
 # Load the JSON data
-with open('embedding_projection/vis_data_1.json', 'r') as file:
+with open('embedding_projection/data.json', 'r') as file:
     data = json.loads(file.read())
 
 # Prepare data for PCA visualization
