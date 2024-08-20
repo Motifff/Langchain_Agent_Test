@@ -34,7 +34,7 @@ File Hierachy of vis_data.json
 }
 """
 
-import os, json ,fcntl, time
+import os, json , time
 import socket
 import threading
 
