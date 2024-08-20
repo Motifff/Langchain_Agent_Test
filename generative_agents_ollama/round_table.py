@@ -35,6 +35,8 @@ File Hierachy of vis_data.json
 """
 
 import os, json ,fcntl, time
+import socket
+import threading
 
 from termcolor import colored
 from datetime import datetime
@@ -56,6 +58,8 @@ from sklearn.preprocessing import StandardScaler
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 file_path = "/Users/motif/Documents/Projs/code/Langchain_Agent_Test/generative_agents_ollama/data.json"
+
+ifRun = False
 
 class DesignerRoundTableChat:
     def __init__(self, agents: List[OneAgent], topic: str, jsonFile: Dict, directinal_text, emb_model: str = "phi3"):
@@ -201,7 +205,7 @@ class DesignerRoundTableChat:
         global data
         self.data_round = data["total_round"]
         while 1:          
-            if self.round_count < self.data_round:
+            if self.round_count < self.data_round and ifRun:
                 self.generate_design_proposals()
                 for each in self.agents:
                     print(colored(f"skip interview process", "blue"))
@@ -251,9 +255,9 @@ class DesignerRoundTableChat:
                         }
                     })
                     with open(file_path,"w") as file:
-                        fcntl.flock(file, fcntl.LOCK_EX)
+                        #fcntl.flock(file, fcntl.LOCK_EX)
                         json.dump(data, file, indent=4)
-                        fcntl.flock(file, fcntl.LOCK_UN)
+                        #fcntl.flock(file, fcntl.LOCK_UN)
                         file.close()
                     self.round_count += 1
                     print(colored(f"Round is finished", "green"))
@@ -265,25 +269,44 @@ class DesignerRoundTableChat:
             else:
                 # system delay for 30s
                 time.sleep(30)
-                print(colored("###System is waiting for the next round###", "blue"))
+                print(colored("###System is waiting for signal to the next round###", "blue"))
                 # update data from json file
                 with open(file_path,"r") as file:
-                    fcntl.flock(file, fcntl.LOCK_SH)
+                    #fcntl.flock(file, fcntl.LOCK_SH)
                     data = json.load(file)
-                    fcntl.flock(file, fcntl.LOCK_UN)
+                    #fcntl.flock(file, fcntl.LOCK_UN)
                 file.close()
                 self.steps = data["total_round"]
                 print(colored(f"Total round is: {self.steps}", "green"))
 
+def listen_udp():
+    global ifRun
+    udp_ip = "localhost"
+    udp_port = 6666
+
+    # Create a UDP socket
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.bind((udp_ip, udp_port))
+
+    while True:
+        data, addr = sock.recvfrom(1024)  # Buffer size is 1024 bytes
+        message = data.decode('utf-8')
+        if message == "start":
+            ifRun = True
+            print("ifRun set to True")
+
+listener_thread = threading.Thread(target=listen_udp)
+listener_thread.daemon = True  # This allows the thread to exit when the main program exits
+listener_thread.start()
 
 # initial main function
 if __name__ == "__main__":
     # read from json file
     global data
     with open(file_path,"r") as file:
-        fcntl.flock(file, fcntl.LOCK_SH)
+        #fcntl.flock(file, fcntl.LOCK_SH)
         data = json.load(file)
-        fcntl.flock(file, fcntl.LOCK_UN)
+        #fcntl.flock(file, fcntl.LOCK_UN)
         file.close()
     # read topic from json file in [original_topic]
     topic = data["original_topic"]
