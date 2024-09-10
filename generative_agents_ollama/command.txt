@@ -1,0 +1,8 @@
+start to run
+{"command":"start"}
+
+chat in round
+{"command”:”chat_in_round”,”content”:”My proposal is to build a new green city”}
+
+add agent memory
+{"command”:”add_memory”,”content”:{"agent_number”:”0”,”memory”:”i dont like everything, i just like my opinion”}}

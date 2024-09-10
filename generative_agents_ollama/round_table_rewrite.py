@@ -49,14 +49,15 @@ class UDPSignalListener:
         try:
             message = json.loads(data.decode())
             if isinstance(message, dict) and 'command' in message:
-                if message['command'] == "start":
+                if message['command'] == 'start':
                     self.state = RoundState.RUNNING
-                elif message['command'] == "stop":
+                    print("running")
+                elif message['command'] == 'stop':
                     self.state = RoundState.FINISHED
-                elif message['command'] == "chat_in_round":
+                elif message['command'] == 'chat_in_round':
                     self.state = RoundState.CHATINROUND
                     self.last_message = message
-                elif message['command'] == "add_memory":
+                elif message['command'] == 'add_memory':
                     self.state = RoundState.ADDMEMORY
                     self.last_message = message
                 print(f"Received signal: {message['command']}")
@@ -266,9 +267,11 @@ class DesignerRoundTableChat:
         asyncio.create_task(signal_listener.listen())
 
         while True:
+            print(signal_listener.state)
             if signal_listener.state == RoundState.FINISHED:
                 break
             elif signal_listener.state == RoundState.RUNNING:
+                print("running")
                 await self.run_single_round()
                 print(colored(f"Current state: Round {self.round_count + 1}, Topic: {self.topic}", "cyan"))
                 print(colored(f"Number of proposals: {len(self.design_proposals)}", "cyan"))
