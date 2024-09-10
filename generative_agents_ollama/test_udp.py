@@ -1,16 +1,21 @@
 import socket
+import json
 
-def send_udp_message(message):
-    udp_ip = "localhost"
-    udp_port = 6666
+UDP_IP = "localhost"
+UDP_PORT = 6666
 
-    # Create a UDP socket
+def send_udp_message():
+    # Create a UDP socket for sending messages
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-    # Encode the message to bytes and send it to the server
-    sock.sendto(message.encode('utf-8'), (udp_ip, udp_port))
-    print(f"Message '{message}' sent to {udp_ip}:{udp_port}")
+    while True:
+        command = input("Enter command to send (or 'quit' to exit): ")
+        if command.lower() == 'quit':
+            break
+        
+        message = json.dumps({"command": command})
+        sock.sendto(message.encode('utf-8'), (UDP_IP, UDP_PORT))
+        print(f"Message '{message}' sent to {UDP_IP}:{UDP_PORT}")
 
-# Test the listener by sending the "start" message
 if __name__ == "__main__":
-    send_udp_message("start")
+    send_udp_message()

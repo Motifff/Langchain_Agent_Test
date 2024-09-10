@@ -37,6 +37,7 @@ File Hierachy of vis_data.json
 import os, json , time
 import socket
 import threading
+from enum import Enum
 
 from termcolor import colored
 from datetime import datetime
@@ -60,6 +61,28 @@ os.environ['KMP_DUPLICATE_LIB_OK']='True'
 file_path = "/Users/motif/Documents/Projs/code/Langchain_Agent_Test/generative_agents_ollama/data.json"
 
 ifRun = False
+
+class RoundState(Enum):
+    WAITING = 0
+    RUNNING = 1
+    FINISHED = 2
+
+class UDPSignalListener:
+    def __init__(self, ip="localhost", port=6666):
+        self.ip = ip
+        self.port = port
+        self.state = RoundState.WAITING
+
+    async def listen(self):
+        reader, _ = await asyncio.open_connection(self.ip, self.port)
+        while True:
+            data = await reader.read(100)
+            message = data.decode()
+            if message == "start":
+                self.state = RoundState.RUNNING
+            elif message == "stop":
+                self.state = RoundState.FINISHED
+            await asyncio.sleep(1)
 
 class DesignerRoundTableChat:
     def __init__(self, agents: List[OneAgent], topic: str, jsonFile: Dict, directinal_text, emb_model: str = "phi3"):
@@ -150,23 +173,8 @@ class DesignerRoundTableChat:
         return response
 
     def generate_extreme_vectors(self):
-        # ask the llm to generate six extreme vectors for self.topic and return in a json list format
-        prompt = PromptTemplate.from_template(
-            "You are a round table holder and overall topic is {overall_topic}"+
-            "You have just finished a round of discussion"+
-            "Based on the proposals from the agents, they are {current_round_proposals},"+
-            "And the winning proposal is {winning_proposal}"+
-            "you need to generate a new topic for the next round of discussion based on given information"+
-            "The new topic should be related to the current topic but with a new focus."+
-            "The response should be within 3-5 sentences."
-        )
-        kwargs: Dict[str, Any] = dict(
-            current_topic=self.topic
-        )
-        # Send the prompt to ChatOllama and get the response
-        response = self.chain(prompt).run(**kwargs).strip()
-        # parse the json text to get the extreme vectors's list
-        self.extreme_vectors = json.loads(response)
+        # ask the llm to generate six extreme vectors from self.topic and return in a json list format
+        1 = 1
 
     def get_embedding_vector(self, text: str):
         """Get the embedding vector for a given text and also return its PCA-reduced version."""
@@ -196,7 +204,7 @@ class DesignerRoundTableChat:
 
     def run_round(self,now: Optional[datetime] = None):        
         # Generate design proposals, the round should be like this:
-        # 1. Generate design proposals based on given topic(only in first round)
+        # 1. Generate this round's design proposals based on given topic
         # 2. Each agent generates a design proposal and presents it to the group
         # 3. Interview each agent to understand their design proposals(Optional for user)
         # 4. Count voting results and decide the winning proposal, if there is a tie, redo 2 and 3
@@ -204,7 +212,7 @@ class DesignerRoundTableChat:
         # Step should -1 if successfully finish a round, if steps is not 0, continue this process
         global data
         self.data_round = data["total_round"]
-        while 1:          
+        while True:          
             if self.round_count < self.data_round and ifRun:
                 self.generate_design_proposals()
                 for each in self.agents:
@@ -233,7 +241,6 @@ class DesignerRoundTableChat:
                                 each.agent.memory.now_key: now,
                             },
                         )
-                        #print(colored(str(each.memory.memory_retriever.memory_stream), "red"))
                     # dump data to json file
                     data["runtime"].append({
                         "round_count": self.round_count,
@@ -280,7 +287,7 @@ class DesignerRoundTableChat:
                 print(colored(f"Total round is: {self.steps}", "green"))
 
 def listen_udp():
-    global ifRun
+    global ifRun,buffer
     udp_ip = "localhost"
     udp_port = 6666
 
@@ -302,7 +309,7 @@ listener_thread.start()
 # initial main function
 if __name__ == "__main__":
     # read from json file
-    global data
+    global data,buffer
     with open(file_path,"r") as file:
         #fcntl.flock(file, fcntl.LOCK_SH)
         data = json.load(file)
