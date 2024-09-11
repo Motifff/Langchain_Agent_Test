@@ -73,16 +73,17 @@ class UDPSignalListener:
     
 
 class DesignerRoundTableChat:
-    def __init__(self, agents: List[OneAgent], topic: str, jsonFile: Dict,file_path, directional_text, emb_model: str = "phi3"):
-        self.agents = agents
-        self.topic = topic
-        self.init_topic = topic
+    def __init__(self, file_path):
+        self.file_path = file_path
+        self.agents = []
+        self.topic = ""
+        self.data = {}
+        self.extreme_words = []
         self.round_count = 0
         self.data_round = 0
         self.proposal_won = ""
         self.design_proposals = []
         self.votes = []
-        self.extreme_words = directional_text
         self.scaler = StandardScaler()
         self.llm = ChatOllama(
             model="phi3",
@@ -90,9 +91,7 @@ class DesignerRoundTableChat:
             temperature=0.2,
             max_new_tokens=4096
         )
-        self.embeddings_model = OllamaEmbeddings(model=emb_model)
-        self.file_path = file_path
-        self.data = jsonFile
+        self.embeddings_model = OllamaEmbeddings(model="phi3")
 
     def chain(self, prompt: PromptTemplate) -> LLMChain:
         return LLMChain(llm=self.llm, prompt=prompt)
@@ -262,6 +261,34 @@ class DesignerRoundTableChat:
         await self.update_agent_memories()
         return True
 
+    async def init_table(self):
+        print(colored("Initializing round table...", "blue"))
+        try:
+            with open(self.file_path, "r") as file:
+                self.data = json.load(file)
+
+            self.topic = self.data["original_topic"]
+            self.init_topic = self.topic
+            self.data_round = self.data["total_round"]
+
+            for each in self.data["agents"]:
+                agent = OneAgent(each, "phi3", 0.1, 512)
+                self.agents.append(agent)
+
+            self.extreme_words = [
+                "Focus on objective facts and data, analyze existing information.",
+                "Represents emotions and intuition, expresses personal feelings and emotions.",
+                "Used for critical thinking, identify potential problems and risks.",
+                "Symbolizes optimism, looking for positive aspects and opportunities in problems.",
+                "Represents creative thinking, encourages new ideas and solutions.",
+                "Responsible for organizing and controlling the thinking process, ensuring that thinking is carried out in an orderly manner.",
+            ]
+
+            print(colored("Round table initialized successfully", "green"))
+        except Exception as e:
+            print(colored(f"Error initializing round table: {str(e)}", "red"))
+            raise
+
     async def run_rounds(self):
         signal_listener = UDPSignalListener()
         asyncio.create_task(signal_listener.listen())
@@ -271,7 +298,8 @@ class DesignerRoundTableChat:
             if signal_listener.state == RoundState.FINISHED:
                 break
             elif signal_listener.state == RoundState.RUNNING:
-                print("running")
+                if not self.agents:  # Check if initialization is needed
+                    await self.init_table()
                 await self.run_single_round()
                 print(colored(f"Current state: Round {self.round_count + 1}, Topic: {self.topic}", "cyan"))
                 print(colored(f"Number of proposals: {len(self.design_proposals)}", "cyan"))
@@ -367,25 +395,5 @@ class DesignerRoundTableChat:
 
 if __name__ == "__main__":
     path = "/Users/motif/Documents/Projs/code/Langchain_Agent_Test/generative_agents_ollama/data.json"
-    
-    with open(path, "r") as file:
-        data = json.load(file)
-
-    topic = data["original_topic"]
-    agents = []
-
-    for each in data["agents"]:
-        agent = OneAgent(each, "phi3", 0.1, 512)
-        agents.append(agent)
-
-    directional_text = [
-        "Focus on objective facts and data, analyze existing information.",
-        "Represents emotions and intuition, expresses personal feelings and emotions.",
-        "Used for critical thinking, identify potential problems and risks.",
-        "Symbolizes optimism, looking for positive aspects and opportunities in problems.",
-        "Represents creative thinking, encourages new ideas and solutions.",
-        "Responsible for organizing and controlling the thinking process, ensuring that thinking is carried out in an orderly manner.",
-    ]
-
-    round_table_chat = DesignerRoundTableChat(agents, topic, data, path,directional_text)
+    round_table_chat = DesignerRoundTableChat(path)
     asyncio.run(round_table_chat.run_rounds())
