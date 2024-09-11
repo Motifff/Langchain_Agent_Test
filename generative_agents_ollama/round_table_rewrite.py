@@ -366,6 +366,13 @@ class DesignerRoundTableChat:
         self.generate_new_round_topic()
         self.reset_round_data()
 
+        if self.round_count >= self.data_round:
+            self.signal_listener.state = RoundState.FINISHED
+            print(colored("All rounds completed", "green"))
+        else:
+            print(colored(f"Current round {self.round_count} is less than total rounds {self.data_round}. Resetting state to RUNNING.", "yellow"))
+            self.signal_listener.state = RoundState.RUNNING
+
     async def handle_add_memory(self):
         print(colored("Handling add memory...", "yellow"))
         
