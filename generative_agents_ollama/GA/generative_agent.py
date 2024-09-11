@@ -167,7 +167,7 @@ class GenerativeAgent(BaseModel):
             + "Given the following relevant memories, what is {name}'s best proposal."
             + " Relevant memories: {relevant_memories_str}"
             + " Use the memories to inform your design proposal."
-            + "\nWrite as short as possible."
+            + "\nWrite 3 to 4 sentences."
         )   
         kwargs: Dict[str, Any] = dict(
             name = self.name,

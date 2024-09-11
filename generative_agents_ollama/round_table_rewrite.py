@@ -29,7 +29,7 @@ class RoundState(Enum):
     ADDMEMORY = 4
 
 class UDPSignalListener:
-    def __init__(self, ip="localhost", port=6666):
+    def __init__(self, ip="localhost", port=3000):
         self.ip = ip
         self.port = port
         self.state = RoundState.WAITING
@@ -92,6 +92,7 @@ class DesignerRoundTableChat:
             max_new_tokens=4096
         )
         self.embeddings_model = OllamaEmbeddings(model="phi3")
+        self.signal_listener = UDPSignalListener()
 
     def chain(self, prompt: PromptTemplate) -> LLMChain:
         return LLMChain(llm=self.llm, prompt=prompt)
@@ -290,14 +291,13 @@ class DesignerRoundTableChat:
             raise
 
     async def run_rounds(self):
-        signal_listener = UDPSignalListener()
-        asyncio.create_task(signal_listener.listen())
+        asyncio.create_task(self.signal_listener.listen())
 
         while True:
-            print(signal_listener.state)
-            if signal_listener.state == RoundState.FINISHED:
+            print(self.signal_listener.state)
+            if self.signal_listener.state == RoundState.FINISHED:
                 break
-            elif signal_listener.state == RoundState.RUNNING:
+            elif self.signal_listener.state == RoundState.RUNNING:
                 if not self.agents:  # Check if initialization is needed
                     await self.init_table()
                 await self.run_single_round()
@@ -305,17 +305,17 @@ class DesignerRoundTableChat:
                 print(colored(f"Number of proposals: {len(self.design_proposals)}", "cyan"))
                 print(colored(f"Number of votes: {len(self.votes)}", "cyan"))
                 if self.round_count >= self.data_round:
-                    signal_listener.state = RoundState.WAITING
-            elif signal_listener.state == RoundState.CHATINROUND:
+                    self.signal_listener.state = RoundState.WAITING
+            elif self.signal_listener.state == RoundState.CHATINROUND:
                 await self.handle_chat_in_round()
-                signal_listener.state = RoundState.WAITING
-            elif signal_listener.state == RoundState.ADDMEMORY:
+                self.signal_listener.state = RoundState.WAITING
+            elif self.signal_listener.state == RoundState.ADDMEMORY:
                 await self.handle_add_memory()
-                signal_listener.state = RoundState.WAITING
-            elif signal_listener.state == RoundState.WAITING:
+                self.signal_listener.state = RoundState.WAITING
+            elif self.signal_listener.state == RoundState.WAITING:
                 await self.handle_waiting_state()
             else:
-                print(colored(f"Unhandled state: {signal_listener.state}", "red"))
+                print(colored(f"Unhandled state: {self.signal_listener.state}", "red"))
             
             await asyncio.sleep(1)  # Small delay to prevent busy-waiting
 
@@ -336,12 +336,15 @@ class DesignerRoundTableChat:
     async def handle_chat_in_round(self):
         print(colored("Handling chat in round...", "yellow"))
         
-        if not signal_listener.last_message or 'content' not in signal_listener.last_message:
+        if not self.signal_listener.last_message or 'content' not in self.signal_listener.last_message:
             print(colored("Invalid or missing message for chat_in_round", "red"))
             return
 
-        new_proposal = signal_listener.last_message['content']
-        signal_listener.last_message = None  # Clear the message after using it
+        new_proposal = self.signal_listener.last_message['content']
+        self.signal_listener.last_message = None  # Clear the message after using it
+        
+        # Generate proposals from agents
+        self.generate_design_proposals()
         
         # Add the new proposal to the vote pool
         self.design_proposals.append(new_proposal)
@@ -366,17 +369,17 @@ class DesignerRoundTableChat:
     async def handle_add_memory(self):
         print(colored("Handling add memory...", "yellow"))
         
-        if not signal_listener.last_message or 'content' not in signal_listener.last_message:
+        if not self.signal_listener.last_message or 'content' not in self.signal_listener.last_message:
             print(colored("Invalid or missing message for add_memory", "red"))
             return
 
         try:
-            agent_number = int(signal_listener.last_message['content']['agent_number'])
+            agent_number = int(self.signal_listener.last_message['content']['agent_number'])
             if agent_number < 0 or agent_number >= len(self.agents):
                 raise ValueError("Invalid agent number")
 
-            content = signal_listener.last_message['content']['memory']
-            signal_listener.last_message = None  # Clear the message after using it
+            content = self.signal_listener.last_message['content']['memory']
+            self.signal_listener.last_message = None  # Clear the message after using it
             
             # Add memory to the specified agent
             agent = self.agents[agent_number]

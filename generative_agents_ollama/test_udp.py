@@ -2,7 +2,7 @@ import socket
 import json
 
 UDP_IP = "localhost"
-UDP_PORT = 6666
+UDP_PORT = 3000
 
 def send_udp_message():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
