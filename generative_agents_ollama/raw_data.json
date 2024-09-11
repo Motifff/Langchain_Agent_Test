@@ -1,5 +1,6 @@
 {
     "original_topic": "Design and development of future cities",
+    "environment": "The environment agents staying at is park",
     "agents": [
         {
             "name": "Alex",

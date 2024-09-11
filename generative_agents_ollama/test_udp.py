@@ -1,7 +1,7 @@
 import socket
 import json
 
-UDP_IP = "localhost"
+UDP_IP = "127.0.0.1"
 UDP_PORT = 3000
 
 def send_udp_message():

@@ -29,7 +29,7 @@ class RoundState(Enum):
     ADDMEMORY = 4
 
 class UDPSignalListener:
-    def __init__(self, ip="localhost", port=3000):
+    def __init__(self, ip="127.0.0.1", port=3000):
         self.ip = ip
         self.port = port
         self.state = RoundState.WAITING
@@ -404,6 +404,6 @@ class DesignerRoundTableChat:
             print(colored(f"Error adding memory: {str(e)}", "red"))
 
 if __name__ == "__main__":
-    path = "/Users/motif/Documents/Projs/code/Langchain_Agent_Test/generative_agents_ollama/data.json"
+    path = "C:/Users/Wex/Documents/GitHub/Langchain_Agent_Test/generative_agents_ollama/data.json"
     round_table_chat = DesignerRoundTableChat(path)
     asyncio.run(round_table_chat.run_rounds())
