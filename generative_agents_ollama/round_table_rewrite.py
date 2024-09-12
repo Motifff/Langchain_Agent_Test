@@ -32,8 +32,18 @@ class UDPSignalListener:
     def __init__(self, ip="127.0.0.1", port=3000):
         self.ip = ip
         self.port = port
-        self.state = RoundState.WAITING
+        self._state = RoundState.WAITING
         self.last_message = None
+        self.state_lock = asyncio.Lock()
+
+    @property
+    def state(self):
+        return self._state
+
+    async def set_state(self, new_state):
+        async with self.state_lock:
+            self._state = new_state
+            print(colored(f"State changed to: {self._state}", "magenta"))
 
     async def listen(self):
         transport, _ = await asyncio.get_event_loop().create_datagram_endpoint(
@@ -50,15 +60,14 @@ class UDPSignalListener:
             message = json.loads(data.decode())
             if isinstance(message, dict) and 'command' in message:
                 if message['command'] == 'start':
-                    self.state = RoundState.RUNNING
-                    print("running")
+                    asyncio.create_task(self.set_state(RoundState.RUNNING))
                 elif message['command'] == 'stop':
-                    self.state = RoundState.FINISHED
+                    asyncio.create_task(self.set_state(RoundState.FINISHED))
                 elif message['command'] == 'chat_in_round':
-                    self.state = RoundState.CHATINROUND
+                    asyncio.create_task(self.set_state(RoundState.CHATINROUND))
                     self.last_message = message
                 elif message['command'] == 'add_memory':
-                    self.state = RoundState.ADDMEMORY
+                    asyncio.create_task(self.set_state(RoundState.ADDMEMORY))
                     self.last_message = message
                 print(f"Received signal: {message['command']}")
             else:
@@ -153,26 +162,42 @@ class DesignerRoundTableChat:
         self.data["chat_in_round_proposals"].append(new_proposal_data)
         await self.write_json_file()
 
+    async def compress_text(self, text: str) -> str:
+        prompt = PromptTemplate(
+            input_variables=["text"],
+            template="Summarize this text in 1-2 phrases: {text}"
+        )
+        response = self.chain(prompt).run(text=text)
+        return response.strip()
+
     async def save_round_results(self, exclude_new_proposal=False):
         round_data = {
             "round_count": self.round_count,
             "topic": {
                 "text": self.topic,
+                "compressed_text": await self.compress_text(self.topic),
                 "vector": self.get_embedding_vector(self.topic)[0],
                 "pca_vector": self.get_embedding_vector(self.topic)[1],
             },
-            "proposals": [
-                {
-                    "proposal": each,
-                    "vector": self.get_embedding_vector(each)[0],
-                    "pca_vector": self.get_embedding_vector(each)[1],
-                } for each in (self.design_proposals[:-1] if exclude_new_proposal else self.design_proposals)
-            ],
-            "vote": {
-                "process": self.votes,
-                "win": self.proposal_won
-            }
+            "proposals": []
         }
+
+        proposals_to_process = self.design_proposals[:-1] if exclude_new_proposal else self.design_proposals
+        for proposal in proposals_to_process:
+            compressed_proposal = await self.compress_text(proposal)
+            print(compressed_proposal)
+            round_data["proposals"].append({
+                "proposal": proposal,
+                "compressed_proposal": compressed_proposal,
+                "vector": self.get_embedding_vector(proposal)[0],
+                "pca_vector": self.get_embedding_vector(proposal)[1],
+            })
+
+        round_data["vote"] = {
+            "process": self.votes,
+            "win": self.proposal_won
+        }
+
         self.data["runtime"].append(round_data)
         await self.write_json_file()
 
@@ -404,6 +429,6 @@ class DesignerRoundTableChat:
             print(colored(f"Error adding memory: {str(e)}", "red"))
 
 if __name__ == "__main__":
-    path = "C:/Users/Wex/Documents/GitHub/Langchain_Agent_Test/generative_agents_ollama/data.json"
+    path = "/Users/motif/Documents/Projs/code/Langchain_Agent_Test/generative_agents_ollama/data.json"
     round_table_chat = DesignerRoundTableChat(path)
     asyncio.run(round_table_chat.run_rounds())
