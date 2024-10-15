@@ -15,7 +15,19 @@ labels = []
 colors = []
 paragraphs = []
 
-round_colors = ['#000000', '#0000FF', '#00FF00', '#00FFFF', '#FF0000']
+agent_names = [agent['name'] for agent in data['agents']]
+agent_index = 0
+
+round_colors = [
+    '#1f77b4',  # Blue
+    '#ff7f0e',  # Orange
+    '#2ca02c',  # Green
+    '#d62728',  # Red
+    '#9467bd',  # Purple
+    '#8c564b',  # Brown
+    '#e377c2',  # Pink
+    '#7f7f7f',  # Gray
+]
 alpha = 0.5
 
 for i, round_data in enumerate(data['runtime']):
@@ -23,14 +35,15 @@ for i, round_data in enumerate(data['runtime']):
     all_vectors.append(topic_vector)
     labels.append(f"Round {round_data['round_count']} Topic")
     colors.append(round_colors[i])
-    paragraphs.append(round_data['topic']['text'])
+    paragraphs.append(f"System: {round_data['topic']['text']}")
 
     for proposal in round_data['proposals']:
         proposal_vector = proposal['vector']
         all_vectors.append(proposal_vector)
         labels.append(f"Round {round_data['round_count']} Proposal")
         colors.append(round_colors[i])
-        paragraphs.append(proposal['proposal'])
+        paragraphs.append(f"{agent_names[agent_index]}: {proposal['proposal']}")
+        agent_index = (agent_index + 1) % len(agent_names)
 
 # Convert all_vectors to numpy array for PCA
 all_vectors_np = np.array(all_vectors)
@@ -56,16 +69,44 @@ def update_annot(ind):
     x, y, z = pos[0][ind["ind"][0]], pos[1][ind["ind"][0]], pos[2][ind["ind"][0]]
     annot.xy = (x, y)
     annot.set_position((x, y, z))
-    text = "\n".join([paragraphs[n] for n in ind["ind"]])
+    text = f"Author: {authors[ind['ind'][0]]}\n\n{paragraphs[ind['ind'][0]]}"
     annot.set_text(text)
-    annot.get_bbox_patch().set_alpha(0.4)
+    annot.get_bbox_patch().set_alpha(0.9)
+
+# Create a custom annotation class for auto-scrolling
+class ScrollingAnnotation(plt.Annotation):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.scroll_speed = 1
+        self.scroll_position = 0
+        self.full_text = ""
+
+    def set_full_text(self, text):
+        self.full_text = text
+        self.scroll_position = 0
+
+    def update_text(self):
+        visible_text = self.full_text[self.scroll_position:self.scroll_position + 200]
+        self.set_text(visible_text)
+        self.scroll_position = (self.scroll_position + self.scroll_speed) % len(self.full_text)
+
+# Replace the original annotation with the custom one
+annot = ScrollingAnnotation("", xy=(0,0), xytext=(20,20),
+                            textcoords="offset points",
+                            bbox=dict(boxstyle="round", fc="w"),
+                            arrowprops=dict(arrowstyle="->"))
+ax.add_artist(annot)
 
 def hover(event):
     vis = annot.get_visible()
     if event.inaxes == ax:
         cont, ind = scatter.contains(event)
         if cont:
-            update_annot(ind)
+            pos = scatter._offsets3d
+            x, y, z = pos[0][ind["ind"][0]], pos[1][ind["ind"][0]], pos[2][ind["ind"][0]]
+            annot.xy = (x, y)
+            annot.set_position((x, y, z))
+            annot.set_full_text(paragraphs[ind['ind'][0]])
             annot.set_visible(True)
             fig.canvas.draw_idle()
         else:
@@ -73,12 +114,12 @@ def hover(event):
                 annot.set_visible(False)
                 fig.canvas.draw_idle()
 
-# Add annotation for hover effect
-annot = ax.annotate("", xy=(0,0), xytext=(20,20),
-                    textcoords="offset points",
-                    bbox=dict(boxstyle="round", fc="w"),
-                    arrowprops=dict(arrowstyle="->"))
-
+# Function to update the annotation text
+def update_annotation(frame):
+    if annot.get_visible():
+        annot.update_text()
+        return annot,
+    return ()
 
 # Connect the topics and proposals
 for i, round_data in enumerate(data['runtime']):
@@ -104,4 +145,9 @@ ax.set_zlabel('PCA Component 3')
 ax.set_title('3D PCA Visualization of Topics and Proposals')
 annot.set_visible(False)
 fig.canvas.mpl_connect("motion_notify_event", hover)
+
+# Add animation for auto-scrolling
+from matplotlib.animation import FuncAnimation
+anim = FuncAnimation(fig, update_annotation, interval=100, blit=True)
+
 plt.show()
